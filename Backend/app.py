@@ -5,7 +5,13 @@ import os
 
 from config.setting import Settings
 from routes.chat import create_chat_blueprint
+from routes.colleges import college_routes
 from services.gemini_service import GeminiChatService
+from routes.colleges import college_routes
+from routes.content import content_routes
+from routes.degree import degree_routes
+from routes.stream import stream_routes
+
 
 
 def create_app() -> Flask:
@@ -30,8 +36,14 @@ def create_app() -> Flask:
 )
     # Register blueprints
     app.register_blueprint(create_chat_blueprint(chat_service), url_prefix="/api")
+    # Register colleges blueprint
+    app.register_blueprint(college_routes, url_prefix="/api")
+    app.register_blueprint(content_routes, url_prefix="/api")
+    app.register_blueprint(degree_routes, url_prefix="/api")
+    app.register_blueprint(stream_routes, url_prefix="/api")
 
-    # Health endpoint
+
+
     @app.get("/health")
     def health():
         return jsonify({"status": "ok"}), 200
