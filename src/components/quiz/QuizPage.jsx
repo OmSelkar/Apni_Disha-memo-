@@ -202,7 +202,7 @@ const QuizPage = () => {
     };
 
     // Send the request to your backend API
-    const res = await axios.post("http://127.0.0.1:5000/api/chat", payload, {
+    const res = await axios.post("http://127.0.0.1:8080/api/chat", payload, {
       headers: { "Content-Type": "application/json" },
     });
 

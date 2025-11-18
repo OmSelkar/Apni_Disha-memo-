@@ -36,7 +36,7 @@ import debounce from "lodash.debounce";
 // API CONFIG
 // -------------------------------
 const API = axios.create({
-  baseURL: "http://127.0.0.1:5000/api",
+  baseURL: "http://127.0.0.1:8080/api",
   withCredentials: false,
   headers: { "Content-Type": "application/json" },
 });
@@ -88,7 +88,7 @@ const ModernCollegeDirectory = () => {
   const sendBufferedInterest = (buffer) => {
     if (!buffer || Object.keys(buffer).length === 0) return false;
 
-    const url = "http://127.0.0.1:5000/api/colleges/interest-batch";
+    const url = "http://127.0.0.1:8080/api/colleges/interest-batch";
     const body = JSON.stringify({ interest: buffer });
 
     // Try sendBeacon first (best for unload/route-leave)
