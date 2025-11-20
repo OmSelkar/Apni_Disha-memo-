@@ -3,6 +3,8 @@
 from flask import Blueprint, request, jsonify
 from services.connectDB import connect_db
 from bson import ObjectId
+from pymongo import UpdateOne
+import json
 
 college_routes = Blueprint("college_routes", __name__)
 
@@ -62,13 +64,27 @@ def add_college():
 @college_routes.route("/colleges/interest-batch", methods=["POST"])
 def interest_batch():
     db = connect_db()
-    payload = request.get_json(force=True, silent=True) or {}
+
+    # Read raw body (works for sendBeacon + fetch + axios)
+    raw_data = request.get_data(as_text=True)
+    print("🔥 RAW interest-batch BODY:", raw_data)
+
+    payload = {}
+    if raw_data:
+        try:
+            payload = json.loads(raw_data)
+        except Exception as e:
+            print("⚠ Failed to parse JSON from raw_data:", e)
+            # fallback: try normal get_json
+            payload = request.get_json(silent=True) or {}
+    else:
+        payload = request.get_json(silent=True) or {}
+
     interest_map = payload.get("interest", {})
+    print("🧩 Parsed interest_map:", interest_map)
 
     if not isinstance(interest_map, dict) or not interest_map:
-        resp = jsonify({"success": False, "message": "No interest data"})
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        return resp, 400
+        return jsonify({"success": False, "message": "No interest data"}), 400
 
     updated_ids = []
 
@@ -78,20 +94,82 @@ def interest_batch():
             if inc <= 0:
                 continue
 
+            # Try ObjectId, fallback to string ID
             try:
                 oid = ObjectId(college_id)
                 filter_query = {"_id": oid}
-            except:
+            except Exception:
                 filter_query = {"_id": college_id}
 
-            db.College.update_one(filter_query, {"$inc": {"interest": inc}})
-            updated_ids.append(college_id)
+            result = db.College.update_one(filter_query, {"$inc": {"interest": inc}})
+
+            if result.modified_count > 0:
+                updated_ids.append(college_id)
+                print(f"✅ Incremented interest for {college_id} by {inc}")
+            else:
+                print(f"⚠ No document matched for {college_id}")
 
         except Exception as e:
-            print("Interest error:", e)
+            print("❌ Interest update error:", e)
             continue
 
-    resp = jsonify({"success": True, "updated": updated_ids})
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    return resp, 200
+    print("📊 Final updated_ids:", updated_ids)
 
+    return jsonify({"success": True, "updated": updated_ids}), 200
+
+
+
+
+@college_routes.route("/colleges/update-many", methods=["PUT"])
+def update_many_colleges():
+    db = connect_db()
+
+    # Read JSON safely
+    payload = request.get_json(silent=True) or {}
+    updates = payload.get("updates", [])
+
+    # If nothing to update → return early (no error)
+    if not isinstance(updates, list) or len(updates) == 0:
+        return jsonify({
+            "success": True,
+            "updated": [],
+            "count": 0,
+            "message": "No updates provided"
+        }), 200
+
+    bulk_ops = []
+    updated_ids = []
+
+    for item in updates:
+        college_id = item.get("_id")
+        update_data = item.get("data")
+
+        # Validate each item
+        if not college_id or not isinstance(update_data, dict):
+            continue
+
+        # Convert ID to ObjectId if possible
+        try:
+            oid = ObjectId(college_id)
+        except:
+            oid = college_id  # fallback string ID
+
+        # Add bulk update operation
+        bulk_ops.append(
+            UpdateOne(
+              {"_id": oid},
+              {"$set": update_data}
+            )
+        )
+        updated_ids.append(college_id)
+
+    # Run bulk update
+    if len(bulk_ops) > 0:
+        db.College.bulk_write(bulk_ops)
+
+    return jsonify({
+        "success": True,
+        "updated": updated_ids,
+        "count": len(updated_ids),
+        "message": "Bulk update completed"
+    }), 200

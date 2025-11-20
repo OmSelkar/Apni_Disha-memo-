@@ -17,40 +17,24 @@ def create_app() -> Flask:
 
     app = Flask(__name__)
 
-    # ------------------------------------------------------------
-    # FIXED CORS – dynamic origin + credentials + full method list
-    # ------------------------------------------------------------
-    FRONTEND_ORIGINS = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://10.208.230.231:5173",
-        "http://localhost:3000",
-    ]
-
     CORS(
         app,
-        resources={r"/api/*": {"origins": FRONTEND_ORIGINS}},
-        supports_credentials=True,
-        allow_headers=["Content-Type", "Authorization"],
+        resources={r"/*": {"origins": "*"}},
+        supports_credentials=False,
+        allow_headers="*",
+        expose_headers="*",
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     )
 
     @app.after_request
     def apply_cors(response):
-        origin = request.headers.get("Origin")
-
-        if origin in FRONTEND_ORIGINS:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = \
-                "GET, POST, PUT, DELETE, OPTIONS"
-            response.headers["Access-Control-Allow-Headers"] = \
-                "Content-Type, Authorization"
-
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
         return response
+
     # ------------------------------------------------------------
 
-    # Load settings
     settings = Settings.from_env()
 
     chat_service = GeminiChatService(
@@ -77,6 +61,6 @@ def create_app() -> Flask:
 if __name__ == "__main__":
     app = create_app()
     host = os.getenv("FLASK_RUN_HOST", "0.0.0.0")
-    port = int(os.getenv("FLASK_RUN_PORT", "5000"))
+    port = int(os.getenv("FLASK_RUN_PORT", "8080"))
     debug = os.getenv("FLASK_DEBUG", "1") == "1"
     app.run(host=host, port=port, debug=debug)
