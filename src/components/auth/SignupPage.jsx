@@ -1,26 +1,28 @@
+"use client"
+
 // src/components/auth/SignupPage.jsx
-import { useState } from "react";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { User, Mail, Lock, Phone } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react"
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
+import { User, Mail, Lock, Phone } from "lucide-react"
+import { Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 export default function SignupPage({ onSwitch }) {
-  const [form, setForm] = useState({ name: "", email: "", password: "",mobile:"" });
-  const navigate = useNavigate();
+  const [form, setForm] = useState({ name: "", email: "", password: "", mobile: "" })
+  const navigate = useNavigate()
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+  }
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Signup data:", form);
-     navigate("/quiz");
-  };
+    e.preventDefault()
+    console.log("Signup data:", form)
+    navigate("/profile/form")
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 via-white to-pink-50 px-4">
@@ -73,8 +75,8 @@ export default function SignupPage({ onSwitch }) {
                   name="mobile"
                   value={form.mobile}
                   onChange={(e) => {
-                    const numericValue = e.target.value.replace(/\D/g, "").slice(0, 10);
-                    setForm((prev) => ({ ...prev, mobile: numericValue }));
+                    const numericValue = e.target.value.replace(/\D/g, "").slice(0, 10)
+                    setForm((prev) => ({ ...prev, mobile: numericValue }))
                   }}
                   className="pl-10 rounded-lg"
                   placeholder="Enter 10-digit mobile number"
@@ -101,7 +103,6 @@ export default function SignupPage({ onSwitch }) {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
               </div>
             </div>
-            
 
             <Button
               type="submit"
@@ -113,18 +114,14 @@ export default function SignupPage({ onSwitch }) {
             <p className="text-center text-sm text-gray-500">
               Already have an account?{" "}
               <Link to="/login">
-              <button
-                type="button"
-                onClick={onSwitch}
-                className="text-sky-600 hover:underline font-medium"
-              >
-                Login
-              </button>
+                <button type="button" onClick={onSwitch} className="text-sky-600 hover:underline font-medium">
+                  Login
+                </button>
               </Link>
             </p>
           </form>
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

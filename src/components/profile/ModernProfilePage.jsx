@@ -119,6 +119,21 @@ export default function ModernProfilePage() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(mappedUser);
   const [showAll, setShowAll] = useState(false);
+  
+const [originalForm, setOriginalForm] = useState(null);
+
+useEffect(() => {
+  if (editing) {
+    setOriginalForm(form);
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
+  }
+}, [editing]);
+
+const hasUnsavedChanges =
+  originalForm && JSON.stringify(form) !== JSON.stringify(originalForm);
+
 
   const [showMore, setShowMore] = useState({
     hobbies: false,
@@ -423,10 +438,11 @@ export default function ModernProfilePage() {
           </Card>
         </div>
       </div>
-
+      
+{/* bg-white rounded-2xl shadow-lg w-full max-w-2xl max-h-[90vh] */}
       {/* EDIT PROFILE MODAL */}
-      {editing && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      {editing && ( 
+        <div className="fixed inset-x-0 top-24 bottom-0 flex items-start justify-center z-50 pt-10 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-lg w-full max-w-2xl overflow-hidden">
             <div className="bg-pink-500 text-white px-6 py-4 flex justify-between items-center">
               <h2 className="text-lg font-semibold">Edit Profile</h2>
