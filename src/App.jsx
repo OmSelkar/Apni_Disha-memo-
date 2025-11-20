@@ -22,6 +22,7 @@ import CareerGraphPage from "./components/career/CareerGraphPage";
 import BookmarksPage from "./components/bookmarks/BookmarksPage";
 import ModernProfilePage from "./components/profile/ModernProfilePage";
 import SimulatorPage from "./components/simulator/SimulatorPage";
+import ProfileFormPage from "./components/profile/ProfileFormPage";
 
 import AdminDashboard from "./components/admin/AdminDashboard";
 import AdminUsers from "./components/admin/AdminUsers";
@@ -34,6 +35,7 @@ import AdminAnalytics from "./components/admin/AdminAnalytics";
 
 import { LanguageProvider } from "./components/context/LanguageContext";
 import ClerkProtectedRoute from "./components/auth/ClerkProtectedRoute";
+import ClerkEventsRedirect from "./clerk-events";
 
 const NotFound = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -101,6 +103,14 @@ const appRouter = createBrowserRouter([
     element: (
       <ModernLayout>
         <QuizList />
+      </ModernLayout>
+    ),
+  },
+  {
+    path: "/profile/form",
+    element: (
+      <ModernLayout>
+        <ProfileFormPage />
       </ModernLayout>
     ),
   },
@@ -302,6 +312,7 @@ function App() {
   return (
     <LanguageProvider>
       <RouterProvider router={appRouter} />
+      <ClerkEventsRedirect />
     </LanguageProvider>
   );
 }
