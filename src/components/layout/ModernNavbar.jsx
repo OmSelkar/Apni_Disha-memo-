@@ -1,6 +1,5 @@
-// src/components/ModernNavbar.jsx
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -12,7 +11,6 @@ import {
   X,
   Bell,
   ChevronDown,
-  ChevronRight,
   BookOpen,
   GraduationCap,
   Users,
@@ -21,10 +19,6 @@ import {
   Target,
 } from "lucide-react";
 
-import { useTranslation } from "react-i18next";
-import { useLanguage } from "../context/LanguageContext";
-
-// ⭐ Clerk Authentication
 import {
   SignedIn,
   SignedOut,
@@ -32,10 +26,13 @@ import {
   SignInButton,
   SignUpButton,
   ClerkLoaded,
-  ClerkLoading,
+  useUser,
 } from "@clerk/clerk-react";
 
-// ---------------------------------
+import { useTranslation } from "react-i18next";
+import { useLanguage } from "../context/LanguageContext";
+
+// -------------------------------
 
 const NAV_ITEMS = [
   { key: "quiz", href: "/quiz", title: "Quizzes", icon: BookOpen },
@@ -50,24 +47,93 @@ const ModernNavbar = () => {
   const { language, changeLanguage } = useLanguage();
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isSignedIn } = useUser();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [openExplore, setOpenExplore] = useState(false);
-  const [unreadCount] = useState(0);
-
   const exploreRef = useRef(null);
   const hoverTimer = useRef(null);
 
+  // 🔥 Clear Explore dropdown onclick anywhere outside
   useEffect(() => {
     const onDoc = (e) => {
-      if (exploreRef.current && !exploreRef.current.contains(e.target)) setOpenExplore(false);
+      if (exploreRef.current && !exploreRef.current.contains(e.target)) {
+        setOpenExplore(false);
+      }
     };
     document.addEventListener("click", onDoc);
     return () => document.removeEventListener("click", onDoc);
   }, []);
 
-  const isActive = (path) => location.pathname === path;
+  // -----------------------------------------------------
+  // ✅ 1. CHECK PROFILE EXISTS IN BACKEND
+  // -----------------------------------------------------
+  useEffect(() => {
+    if (!isSignedIn || !user) return;
+
+    const checkProfile = async () => {
+      try {
+        const res = await fetch(`http://127.0.0.1:8080/api/students/check/${user.id}`);
+        const data = await res.json();
+
+        console.log("🔍 Profile existence check:", data);
+
+        // If exists, do NOT redirect
+        if (data.exists) return;
+
+        // Allow user to stay on profile form
+        if (location.pathname.startsWith("/profile/form")) return;
+
+        console.log("🆕 No profile found → redirecting to form");
+        navigate("/profile/form", { replace: true });
+
+      } catch (err) {
+        console.error("❌ Profile check failed:", err);
+      }
+    };
+
+    checkProfile();
+  }, [isSignedIn, user, location.pathname, navigate]);
+
+  // -----------------------------------------------------
+  // ✅ 2. LOAD PROFILE & SAVE TO LOCAL STORAGE
+  // -----------------------------------------------------
+  useEffect(() => {
+    if (!isSignedIn || !user) return;
+
+    const loadStudentProfile = async () => {
+      try {
+        const res = await fetch(`http://127.0.0.1:8080/api/students/${user.id}`);
+
+        if (res.status === 404) {
+          console.log("📭 No Mongo profile yet.");
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.success && data.student) {
+          console.log("📥 Saving student profile to localStorage:", data.student);
+
+          localStorage.setItem(
+            "apnidisha_student_profile",
+            JSON.stringify(data.student)
+          );
+        }
+
+      } catch (err) {
+        console.error("❌ Failed loading MongoDB profile:", err);
+      }
+    };
+
+    loadStudentProfile();
+  }, [isSignedIn, user]);
+
+  // -----------------------------------------------------
+  // UI CODE (unchanged)
+  // -----------------------------------------------------
 
   const languages = [
     { code: "en", label: "English" },
@@ -88,7 +154,6 @@ const ModernNavbar = () => {
     clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => setOpenExplore(false), 120);
   };
-
   return (
     <nav className="bg-white/85 backdrop-blur-sm border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -22,6 +22,19 @@ import {
 import debounce from "lodash.debounce";
 
 // -------------------------------
+// Load student profile (from localStorage)
+// -------------------------------
+const PROFILE_KEY = "apnidisha_student_profile";
+const loadProfile = () => {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+// -------------------------------
 // API instance
 // -------------------------------
 const API = axios.create({
@@ -31,6 +44,9 @@ const API = axios.create({
 
 const ModernCollegeDirectory = () => {
   const location = useLocation();
+
+  const student = loadProfile();
+  const userSchool = student?.school || "Unknown";
 
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,14 +103,15 @@ const ModernCollegeDirectory = () => {
   }, []);
 
   // -------------------------------
-  // View Details (Update Interest + Redirect)
+  // View Details (Update Global Interest + School Interest)
   // -------------------------------
   const handleViewDetails = async (college) => {
     const id = college._id;
 
     console.log("❤️ View Details clicked for:", college.name);
+    console.log("🎓 User School:", userSchool);
 
-    // 1. Update UI instantly
+    // 1. UI update instantly
     setColleges((prev) =>
       prev.map((c) =>
         c._id === id ? { ...c, interest: (c.interest || 0) + 1 } : c
@@ -102,20 +119,35 @@ const ModernCollegeDirectory = () => {
     );
     setTotalInterest((prev) => prev + 1);
 
-    // 2. Fire API to update interest in MongoDB
+    // 2. Global interest API update
     try {
-      console.log("📤 Updating interest on backend:", id);
-
-      const res = await API.post("/colleges/interest-batch", {
+      console.log("📤 Updating global interest...");
+      await API.post("/colleges/interest-batch", {
         interest: { [id]: 1 },
       });
-
-      console.log("✅ MongoDB updated:", res.data);
+      console.log("✅ Global interest updated");
     } catch (error) {
-      console.error("❌ Failed to update interest:", error);
+      console.error("❌ Failed global interest update:", error);
     }
 
-    // 3. Redirect to college website
+    // 3. School-specific interest update
+    try {
+      console.log("📤 Updating school interest...", {
+        college_id: id,
+        school: userSchool,
+      });
+
+      await API.post("/school-interest/increment", {
+        college_id: id,
+        school: userSchool,
+      });
+
+      console.log("🏫 School interest updated for:", userSchool);
+    } catch (error) {
+      console.error("❌ Failed school interest update:", error);
+    }
+
+    // 4. Redirect to website
     if (college.website) {
       console.log("🌐 Redirecting:", college.website);
       window.open(college.website, "_blank", "noopener,noreferrer");
@@ -136,7 +168,9 @@ const ModernCollegeDirectory = () => {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center">
           <h1 className="text-3xl font-bold">College Directory</h1>
-          <p className="text-gray-600">Discover top colleges across India</p>
+          <p className="text-gray-600">
+            Discover top colleges across India
+          </p>
         </div>
       </div>
 
@@ -204,6 +238,13 @@ const ModernCollegeDirectory = () => {
                         {pct}
                       </Badge>
                     </div>
+
+                    {/* School Badge */}
+                    {/* {userSchool && (
+                      <div className="absolute top-4 right-4 bg-pink-600 text-white px-2 py-1 rounded text-[10px] shadow">
+                        {userSchool}
+                      </div>
+                    )} */}
                   </div>
 
                   <CardHeader className="pb-4">

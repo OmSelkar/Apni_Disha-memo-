@@ -10,6 +10,8 @@ from services.gemini_service import GeminiChatService
 from routes.content import content_routes
 from routes.degree import degree_routes
 from routes.stream import stream_routes
+from routes.students import students_routes
+from routes.school_interest import school_interest_routes
 
 
 def create_app() -> Flask:
@@ -33,8 +35,6 @@ def create_app() -> Flask:
         response.headers["Access-Control-Allow-Headers"] = "*"
         return response
 
-    # ------------------------------------------------------------
-
     settings = Settings.from_env()
 
     chat_service = GeminiChatService(
@@ -50,6 +50,8 @@ def create_app() -> Flask:
     app.register_blueprint(content_routes, url_prefix="/api")
     app.register_blueprint(degree_routes, url_prefix="/api")
     app.register_blueprint(stream_routes, url_prefix="/api")
+    app.register_blueprint(students_routes, url_prefix="/api")
+    app.register_blueprint(school_interest_routes, url_prefix="/api")
 
     @app.get("/health")
     def health():

@@ -13,7 +13,6 @@ import {
   Globe,
   Medal,
   Dumbbell,
-  Pencil,
   BookOpen,
   TrendingUp,
   Bookmark,
@@ -28,23 +27,26 @@ import {
   Camera,
 } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-
-// ⭐ Clerk imports
 import { useUser, useClerk } from "@clerk/clerk-react";
+import { data } from "autoprefixer";
 
+/* ------------------ FALLBACK DEFAULT DATA ------------------ */
 const fallbackUser = {
   summary:
     "Enthusiastic learner exploring coding, quizzes, and new challenges.",
   tags: ["Learning", "Coding"],
+  school: "Not set",
+  class: "Not set",
+  grade: "Not set",
+
   beyondAcademics: {
     hobbies: ["Reading", "Music"],
     extracurriculars: ["Community Group"],
     certifications: ["Cybersecurity Basics"],
     sports: ["Badminton"],
   },
+
   metrics: [
     {
       label: "Quizzes",
@@ -73,7 +75,7 @@ const fallbackUser = {
   ],
 };
 
-// Sample feed data
+/* ------------------ SAMPLE FEED ------------------ */
 const feed = [
   {
     id: 1,
@@ -98,43 +100,39 @@ const feed = [
   },
 ];
 
+/* Helper to merge Clerk + MongoDB lists */
+const buildList = (clerkList, mongoString, fallbackList = []) => {
+  if (Array.isArray(clerkList) && clerkList.length > 0) return clerkList;
+  if (typeof mongoString === "string" && mongoString.trim() !== "") {
+    return mongoString.split(",").map((s) => s.trim());
+  }
+  return fallbackList;
+};
+
 export default function ModernProfilePage() {
   const { user: clerkUser } = useUser();
-  const { client } = useClerk();
+  const { client } = useClerk(); // not used but kept if you expand later
 
-  const mappedUser = {
-    name: clerkUser?.fullName || "Unnamed User",
-    email: clerkUser?.primaryEmailAddress?.emailAddress || "",
-    avatar: clerkUser?.imageUrl || "",
-    location: clerkUser?.unsafeMetadata?.location || "Not set",
-    summary: clerkUser?.unsafeMetadata?.summary || fallbackUser.summary,
-    tags: clerkUser?.unsafeMetadata?.tags || fallbackUser.tags,
-    beyondAcademics:
-      clerkUser?.unsafeMetadata?.beyondAcademics ||
-      fallbackUser.beyondAcademics,
+  const [mongoStudent, setMongoStudent] = useState(null);
+
+  const [userState, setUserState] = useState({
+    name: "Loading...",
+    email: "",
+    avatar: "",
+    location: "Not set",
+    summary: fallbackUser.summary,
+    tags: fallbackUser.tags,
+    school: fallbackUser.school,
+    class: fallbackUser.class,
+    grade: fallbackUser.grade,
+    beyondAcademics: fallbackUser.beyondAcademics,
     metrics: fallbackUser.metrics,
-  };
+  });
 
-  const [userState, setUserState] = useState(mappedUser);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(mappedUser);
+  const [form, setForm] = useState(userState);
+  const [originalForm, setOriginalForm] = useState(null);
   const [showAll, setShowAll] = useState(false);
-  
-const [originalForm, setOriginalForm] = useState(null);
-
-useEffect(() => {
-  if (editing) {
-    setOriginalForm(form);
-    document.body.style.overflow = "hidden";
-  } else {
-    document.body.style.overflow = "";
-  }
-}, [editing]);
-
-const hasUnsavedChanges =
-  originalForm && JSON.stringify(form) !== JSON.stringify(originalForm);
-
-
   const [showMore, setShowMore] = useState({
     hobbies: false,
     extracurriculars: false,
@@ -142,10 +140,111 @@ const hasUnsavedChanges =
     sports: false,
   });
 
+  const hasUnsavedChanges =
+    originalForm && JSON.stringify(form) !== JSON.stringify(originalForm);
+
+  /* ------------------ FETCH MONGODB STUDENT PROFILE ------------------ */
   useEffect(() => {
-    setUserState(mappedUser);
-    setForm(mappedUser);
+    if (!clerkUser) return;
+
+    const fetchStudent = async () => {
+      try {
+        const res = await fetch(
+          `http://127.0.0.1:8080/api/students/${clerkUser.id}`
+        );
+        if (!res.ok) {
+          console.warn("No Mongo student profile yet");
+          return;
+        }
+        const data = await res.json();
+        // Expecting: { success: true, student: { ... } }
+        if (data?.success && data.student) {
+          setMongoStudent(data.student);
+        }
+      } catch (err) {
+        console.error("Error fetching Mongo student:", err);
+      }
+    };
+
+    fetchStudent();
   }, [clerkUser]);
+
+
+  /* ------------------ MERGE CLERK + MONGO + FALLBACK ------------------ */
+  useEffect(() => {
+    if (!clerkUser) return;
+
+    const unsafe = clerkUser.unsafeMetadata || {};
+    const mongo = mongoStudent || {};
+
+    const clerkBeyond = unsafe.beyondAcademics || {};
+    const fallbackBeyond = fallbackUser.beyondAcademics;
+
+    const mergedBeyond = {
+      hobbies: buildList(
+        clerkBeyond.hobbies,
+        mongo.hobbies,
+        fallbackBeyond.hobbies
+      ),
+      extracurriculars: buildList(
+        clerkBeyond.extracurriculars,
+        mongo.extracurriculars,
+        fallbackBeyond.extracurriculars
+      ),
+      sports: buildList(
+        clerkBeyond.sports,
+        mongo.sports,
+        fallbackBeyond.sports
+      ),
+      certifications:
+        Array.isArray(clerkBeyond.certifications) &&
+        clerkBeyond.certifications.length > 0
+          ? clerkBeyond.certifications
+          : fallbackBeyond.certifications,
+    };
+
+    const merged = {
+      name: clerkUser.fullName || mongo.name || "Unnamed User",
+      email:
+        clerkUser.primaryEmailAddress?.emailAddress ||
+        mongo.email ||
+        "Not set",
+      avatar: clerkUser.imageUrl || "",
+
+      location: unsafe.location || "Not set",
+      summary: unsafe.summary || fallbackUser.summary,
+
+      tags:
+        (Array.isArray(unsafe.tags) && unsafe.tags.length > 0
+          ? unsafe.tags
+          : typeof mongo.interests === "string" &&
+            mongo.interests.trim() !== ""
+          ? mongo.interests.split(",").map((s) => s.trim())
+          : fallbackUser.tags) || [],
+
+      school: mongo.school || fallbackUser.school,
+      class: mongo.class || fallbackUser.class,
+      grade: mongo.grade || fallbackUser.grade,
+
+      beyondAcademics: mergedBeyond,
+      metrics: fallbackUser.metrics,
+    };
+
+    setUserState(merged);
+    setForm(merged);
+  }, [clerkUser, mongoStudent]);
+
+  /* ------------------ EDITING EFFECT (LOCK SCROLL) ------------------ */
+  useEffect(() => {
+    if (editing) {
+      setOriginalForm(form);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [editing, form]);
+
+  /* ------------------ HANDLERS ------------------ */
 
   const toggleShow = (section) => {
     setShowMore((prev) => ({
@@ -165,49 +264,94 @@ const hasUnsavedChanges =
     reader.readAsDataURL(file);
   };
 
-  const handleSave = async () => {
-    const cleanTags =
-      typeof form.tags === "string"
-        ? form.tags.split(",").map((t) => t.trim())
-        : form.tags;
-
-    const cleanBeyond = {};
-    for (let key in form.beyondAcademics) {
-      const val = form.beyondAcademics[key];
-      cleanBeyond[key] =
-        typeof val === "string"
-          ? val.split("\n").map((s) => s.trim()).filter(Boolean)
-          : val;
-    }
-
-    // ⭐ Save to Clerk unsafeMetadata
-    await clerkUser.update({
-      unsafeMetadata: {
-        location: form.location,
-        summary: form.summary,
-        tags: cleanTags,
-        beyondAcademics: cleanBeyond,
-      },
-    });
-
-    setUserState({
-      ...form,
-      tags: cleanTags,
-      beyondAcademics: cleanBeyond,
-    });
-
-    setEditing(false);
-  };
-
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // ---------------- UI ------------------
+  const handleBeyondChange = (key, value) => {
+    setForm((prev) => ({
+      ...prev,
+      beyondAcademics: {
+        ...prev.beyondAcademics,
+        [key]: value.split("\n"),
+      },
+    }));
+  };
+
+  const handleSave = async () => {
+    try {
+      // Clean tags & beyondAcademics for Clerk
+      const cleanTags =
+        typeof form.tags === "string"
+          ? form.tags.split(",").map((t) => t.trim())
+          : form.tags;
+
+      const cleanBeyond = {};
+      for (let key in form.beyondAcademics) {
+        const val = form.beyondAcademics[key];
+        cleanBeyond[key] =
+          typeof val === "string"
+            ? val
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : Array.isArray(val)
+            ? val
+            : [];
+      }
+
+      // ⭐ 1) Update Clerk unsafeMetadata
+      await clerkUser.update({
+        unsafeMetadata: {
+          location: form.location,
+          summary: form.summary,
+          tags: cleanTags,
+          beyondAcademics: cleanBeyond,
+        },
+      });
+
+      // ⭐ 2) Update MongoDB profile
+      try {
+        await fetch(
+          `http://127.0.0.1:8080/api/students/${clerkUser.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: clerkUser.id,
+              name: form.name,
+              email: form.email,
+              class: form.class,
+              grade: form.grade,
+              school: form.school,
+              hobbies: cleanBeyond.hobbies?.join(", "),
+              extracurriculars: cleanBeyond.extracurriculars?.join(", "),
+              interests: cleanTags?.join(", "),
+              sports: cleanBeyond.sports?.join(", "),
+            }),
+          }
+        );
+      } catch (err) {
+        console.error("MongoDB update failed:", err);
+      }
+      
+
+      setUserState({
+        ...form,
+        tags: cleanTags,
+        beyondAcademics: cleanBeyond,
+      });
+
+      setEditing(false);
+    } catch (err) {
+      console.error("Profile save error:", err);
+    }
+  };
+
+  /* ------------------ UI ------------------ */
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-
       {/* HEADER */}
       <section className="bg-gradient-to-r from-[#DEF6CA] via-[#F8BDC4] to-[#F65BE3] text-gray-800 shadow-md rounded-b-3xl">
         <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -228,6 +372,13 @@ const hasUnsavedChanges =
               <h1 className="text-3xl font-bold">{userState.name}</h1>
               <p className="text-sm text-gray-700 mt-1">
                 {userState.email} • {userState.location}
+              </p>
+              {/* 🎓 School / Class / Grade */}
+              <p className="mt-1 text-sm text-gray-800 font-medium">
+                🎓 {userState.school} • Class {userState.class} 
+                
+                {/* Grade{" "}
+                {userState.grade} */}
               </p>
               <p className="mt-2 text-gray-700">{userState.summary}</p>
 
@@ -322,7 +473,7 @@ const hasUnsavedChanges =
               <CardTitle>Achievements</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {[ 
+              {[
                 {
                   icon: Trophy,
                   title: "Quiz Master",
@@ -438,10 +589,9 @@ const hasUnsavedChanges =
           </Card>
         </div>
       </div>
-      
-{/* bg-white rounded-2xl shadow-lg w-full max-w-2xl max-h-[90vh] */}
+
       {/* EDIT PROFILE MODAL */}
-      {editing && ( 
+      {editing && (
         <div className="fixed inset-x-0 top-24 bottom-0 flex items-start justify-center z-50 pt-10 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-lg w-full max-w-2xl overflow-hidden">
             <div className="bg-pink-500 text-white px-6 py-4 flex justify-between items-center">
@@ -452,7 +602,6 @@ const hasUnsavedChanges =
             </div>
 
             <div className="p-6 space-y-6">
-
               {/* Avatar */}
               <div className="flex justify-center">
                 <label className="relative cursor-pointer">
@@ -482,7 +631,7 @@ const hasUnsavedChanges =
               {/* Name + Email */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label>Name</label>
+                  <label className="text-sm font-medium">Name</label>
                   <input
                     name="name"
                     value={form.name}
@@ -492,7 +641,7 @@ const hasUnsavedChanges =
                 </div>
 
                 <div>
-                  <label>Email</label>
+                  <label className="text-sm font-medium">Email</label>
                   <input
                     name="email"
                     value={form.email}
@@ -502,9 +651,40 @@ const hasUnsavedChanges =
                 </div>
               </div>
 
+              {/* School / Class / Grade */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium">School</label>
+                  <input
+                    name="school"
+                    value={form.school}
+                    onChange={handleChange}
+                    className="mt-1 px-3 py-2 w-full border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Class</label>
+                  <input
+                    name="class"
+                    value={form.class}
+                    onChange={handleChange}
+                    className="mt-1 px-3 py-2 w-full border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Grade</label>
+                  <input
+                    name="grade"
+                    value={form.grade}
+                    onChange={handleChange}
+                    className="mt-1 px-3 py-2 w-full border rounded-lg"
+                  />
+                </div>
+              </div>
+
               {/* Location */}
               <div>
-                <label>Location</label>
+                <label className="text-sm font-medium">Location</label>
                 <input
                   name="location"
                   value={form.location}
@@ -515,7 +695,7 @@ const hasUnsavedChanges =
 
               {/* Summary */}
               <div>
-                <label>Summary</label>
+                <label className="text-sm font-medium">Summary</label>
                 <textarea
                   name="summary"
                   value={form.summary}
@@ -527,10 +707,16 @@ const hasUnsavedChanges =
 
               {/* Tags */}
               <div>
-                <label>Tags (comma separated)</label>
+                <label className="text-sm font-medium">
+                  Tags (comma separated)
+                </label>
                 <input
                   name="tags"
-                  value={Array.isArray(form.tags) ? form.tags.join(", ") : form.tags}
+                  value={
+                    Array.isArray(form.tags)
+                      ? form.tags.join(", ")
+                      : form.tags || ""
+                  }
                   onChange={handleChange}
                   className="mt-1 px-3 py-2 w-full border rounded-lg"
                 />
@@ -540,19 +726,13 @@ const hasUnsavedChanges =
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.keys(form.beyondAcademics).map((key) => (
                   <div key={key}>
-                    <label className="capitalize">{key}</label>
+                    <label className="text-sm font-medium capitalize">
+                      {key}
+                    </label>
                     <textarea
                       rows={3}
                       value={(form.beyondAcademics[key] || []).join("\n")}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          beyondAcademics: {
-                            ...prev.beyondAcademics,
-                            [key]: e.target.value.split("\n"),
-                          },
-                        }))
-                      }
+                      onChange={(e) => handleBeyondChange(key, e.target.value)}
                       className="mt-1 px-3 py-2 w-full border rounded-lg"
                     />
                   </div>
