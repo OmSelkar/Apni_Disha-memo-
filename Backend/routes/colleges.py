@@ -172,3 +172,5 @@ def update_many_colleges():
         "count": len(updated_ids),
         "message": "Bulk update completed"
     }), 200
+
+    

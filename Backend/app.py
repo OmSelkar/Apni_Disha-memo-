@@ -12,6 +12,7 @@ from routes.degree import degree_routes
 from routes.stream import stream_routes
 from routes.students import students_routes
 from routes.school_interest import school_interest_routes
+from routes.mindmap import mindmap_bp
 
 
 def create_app() -> Flask:
@@ -52,6 +53,7 @@ def create_app() -> Flask:
     app.register_blueprint(stream_routes, url_prefix="/api")
     app.register_blueprint(students_routes, url_prefix="/api")
     app.register_blueprint(school_interest_routes, url_prefix="/api")
+    app.register_blueprint(mindmap_bp, url_prefix="/api") 
 
     @app.get("/health")
     def health():
