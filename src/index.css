@@ -100,6 +100,9 @@
   stroke: #818cf8 !important;
   stroke-width: 2 !important;
 }
+.react-flow {
+  min-height: 300px;
+}
 /* Professional Utility Classes */
 .btn-primary {
   @apply bg-slate-800 hover:bg-slate-700 text-white font-medium px-6 py-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-800 focus:ring-offset-2;

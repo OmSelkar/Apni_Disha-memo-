@@ -213,7 +213,7 @@ function getLayoutedElements(nodes, edges, selectedStreams = [1, 2, 3, 4, 5]) {
 
 
 /* ------------------ Main component ------------------ */
-export default function FlowChart({
+function FlowChart({
   isFullScreen = false,
   onCloseFullScreen,
   selectedStreams = [1, 2, 3, 4, 5], // New prop: Array of visible stream numbers
@@ -425,6 +425,7 @@ const toggleCollapse = useCallback((nodeId) => {
     zoomOnScroll
     zoomOnDoubleClick={false}
     fitView
+    fitViewOnInit
     fitViewOptions={{
       padding: isFullScreen ? 0.05 : 0.1,
       duration: 600,
@@ -449,3 +450,4 @@ const toggleCollapse = useCallback((nodeId) => {
     
   );
 }
+export default React.memo(FlowChart);

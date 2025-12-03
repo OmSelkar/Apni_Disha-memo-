@@ -2,7 +2,7 @@
 import { createBrowserRouter, RouterProvider, Link } from "react-router-dom";
 import ModernLayout from "./components/layout/ModernLayout";
 import ProtectedRoute from "./components/admin/ProtectedRoute";
-
+import { ReactFlowProvider } from "reactflow";
 import LoginPage from "./components/auth/LoginPage";
 import SignupPage from "./components/auth/SignupPage";
 
@@ -31,6 +31,7 @@ import AdminTimeline from "./components/admin/AdminTimeline";
 import AdminContent from "./components/admin/AdminContent";
 import AdminCareerGraph from "./components/admin/AdminCareerGraph";
 import AdminAnalytics from "./components/admin/AdminAnalytics";
+import SubscribedEvents from "./components/timeline/subscribedEvents";
 
 import { LanguageProvider } from "./components/context/LanguageContext";
 import ClerkProtectedRoute from "./components/auth/ClerkProtectedRoute";
@@ -194,7 +195,16 @@ const appRouter = createBrowserRouter([
       </ModernLayout>
     ),
   },
-
+  {
+    path: "/timeline/subscribed-events",
+    element: (
+      <ModernLayout>
+        <ClerkProtectedRoute>
+          <SubscribedEvents />
+        </ClerkProtectedRoute>
+      </ModernLayout>
+    ),
+  },
   {
     path: "/content",
     element: (
@@ -325,10 +335,12 @@ const appRouter = createBrowserRouter([
 
 function App() {
   return (
-    <LanguageProvider>
-      <RouterProvider router={appRouter} />
-      <ClerkEventsRedirect />
-    </LanguageProvider>
+    <ReactFlowProvider>
+      <LanguageProvider>
+        <RouterProvider router={appRouter} />
+        <ClerkEventsRedirect />
+      </LanguageProvider>
+    </ReactFlowProvider>
   );
 }
 
