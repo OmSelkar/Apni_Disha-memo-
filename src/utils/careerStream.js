@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   Users,
   AlertTriangle,
@@ -742,3 +743,92 @@ export function generateNarrative(scenario, lang = "en") {
     { id: 'e5C-5C4', source: '5C', target: '5C4', animated: true },
     { id: 'e5C-5C5', source: '5C', target: '5C5', animated: true },
   ];
+const CHILD_NODE_WIDTH = 160;
+const LEVEL_VERTICAL_GAP = 120;  // distance between parent & children
+const SIBLING_HORIZONTAL_GAP = 40; // gap between subtrees
+const MIN_NODE_WIDTH = CHILD_NODE_WIDTH + 40;
+
+function buildChildrenMap(edges) {
+  const map = new Map();
+  edges.forEach((e) => {
+    if (!map.has(e.source)) map.set(e.source, []);
+    map.get(e.source).push(e.target);
+  });
+  return map;
+}
+function buildIncomingMap(edges) {
+  const map = new Map();
+  edges.forEach((e) => {
+    if (!map.has(e.target)) map.set(e.target, []);
+    map.get(e.target).push(e.source);
+  });
+  return map;
+}
+function computeSubtreeWidth(nodeId, childrenMap) {
+  const children = childrenMap.get(nodeId) || [];
+  if (children.length === 0) return MIN_NODE_WIDTH;
+  let total = 0;
+  for (const child of children) {
+    total += computeSubtreeWidth(child, childrenMap);
+  }
+  return Math.max(total, MIN_NODE_WIDTH);
+}
+function layoutTree(rootId, childrenMap, x, y, positioned, subtreeWidthFn) {
+  const children = childrenMap.get(rootId) || [];
+  const thisWidth = subtreeWidthFn(rootId);
+  positioned[rootId] = {
+    x: x + thisWidth / 2 - CHILD_NODE_WIDTH / 2,
+    y: y,
+  };
+  if (children.length === 0) return;
+  let cursorX = x;
+  for (const child of children) {
+    const w = subtreeWidthFn(child);
+    layoutTree(child, childrenMap, cursorX, y + LEVEL_VERTICAL_GAP, positioned, subtreeWidthFn);
+    cursorX += w + SIBLING_HORIZONTAL_GAP;
+  }
+}
+
+export function getLayoutedElements(nodes, edges, selectedStreams = [1, 2, 3, 4, 5]) {
+  const childrenMap = buildChildrenMap(edges);
+  const incomingMap = buildIncomingMap(edges);
+  const rootNodes = nodes.filter((n) => !incomingMap.has(n.id));
+  const subtreeWidthFn = (id) => computeSubtreeWidth(id, childrenMap);
+  const positioned = {};
+  let startX = 0;
+  for (const root of rootNodes) {
+    const width = subtreeWidthFn(root.id);
+    layoutTree(root.id, childrenMap, startX, 0, positioned, subtreeWidthFn);
+    startX += width + 200;
+  }
+
+  // Apply hidden: Parse stream from id[0] (e.g., '1A' -> 1)
+  const layoutedNodes = nodes.map((n) => {
+    const streamNum = parseInt(n.id.charAt(0));
+    const shouldHide = isNaN(streamNum) || !selectedStreams.includes(streamNum);
+    return {
+      ...n,
+      position: positioned[n.id] || { x: 0, y: 0 },
+      hidden: shouldHide,
+      draggable: true,
+    };
+  });
+
+  return {
+    nodes: layoutedNodes,
+    edges: edges.map((e) => ({
+      ...e,
+      type: "smoothstep",
+      style: {
+        stroke: "rgba(71,85,105,0.35)",
+        strokeWidth: 1.8,
+      },
+      markerEnd: {
+        type: "arrowclosed",
+        color: "rgba(71,85,105,0.35)",
+      },
+    })),
+  };
+}
+export const selectedStreams = [1,2,3,4,5]
+

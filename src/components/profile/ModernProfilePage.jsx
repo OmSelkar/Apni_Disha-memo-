@@ -7,6 +7,7 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Heart,
@@ -23,14 +24,14 @@ import {
   Trophy,
   Sparkles,
   User,
-  X,
+  X,CalendarIcon,
   Camera,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { data } from "autoprefixer";
-
+import { formatDistanceToNowStrict, isFuture, parseISO } from "date-fns";
 /* ------------------ FALLBACK DEFAULT DATA ------------------ */
 const fallbackUser = {
   summary:
@@ -114,6 +115,9 @@ export default function ModernProfilePage() {
   const { client } = useClerk(); 
 
   const [mongoStudent, setMongoStudent] = useState(null);
+const navigate = useNavigate();
+const [subscribedEvents, setSubscribedEvents] = useState([]);
+const [nextEvent, setNextEvent] = useState(null);
 
   const [userState, setUserState] = useState({
     name: "Loading...",
@@ -168,6 +172,38 @@ export default function ModernProfilePage() {
 
     fetchStudent();
   }, [clerkUser]);
+
+useEffect(() => {
+  if (!clerkUser) return;
+
+  const userId = clerkUser.id; // or localStorage.getItem('uid') if that's what you use
+
+  const loadSubscribed = async () => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/events/subscribed/${userId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const events = data.events || [];
+      setSubscribedEvents(events);
+
+      // find next upcoming event (future, earliest date)
+      const upcoming = events
+        .map(e => ({ ...e, dateObj: new Date(e.date) }))
+        .filter(e => e.dateObj > new Date())
+        .sort((a, b) => a.dateObj - b.dateObj);
+
+      if (upcoming.length > 0) {
+        setNextEvent(upcoming[0]);
+      } else {
+        setNextEvent(null);
+      }
+    } catch (err) {
+      console.error("Failed to load subscribed events for profile:", err);
+    }
+  };
+
+  loadSubscribed();
+}, [clerkUser]);
 
 
 
@@ -380,55 +416,160 @@ useEffect(() => {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       {/* HEADER */}
       <section className="bg-gradient-to-r from-[#DEF6CA] via-[#F8BDC4] to-[#F65BE3] text-gray-800 shadow-md rounded-b-3xl">
-        <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="h-24 w-24 rounded-full border-4 border-white shadow-lg overflow-hidden">
-              {userState.avatar ? (
-                <img
-                  src={userState.avatar}
-                  alt={userState.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <User className="h-10 w-10 text-pink-600 mx-auto mt-6" />
-              )}
-            </div>
+  {/* TOP BAR — Title + Actions */}
+  <div className="max-w-7xl mx-auto px-6 pt-6 pb-4">
+    <div className="flex justify-between items-center">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-md">
+        Dashboard
+      </h1>
+      <div className="flex items-center gap-3">
+        <Button
+          onClick={() => navigate("/timeline/subscribed-events")}
+          className="bg-white/90 backdrop-blur-md text-indigo-700 font-semibold hover:bg-white shadow-lg px-6 py-2 rounded-xl transition-shadow"
+          size="sm"
+        >
+          My Events
+        </Button>
+        <Button
+          onClick={() => setEditing(true)}
+          className="bg-white text-pink-600 hover:bg-pink-50 shadow-lg px-6 py-2 rounded-xl font-semibold"
+          size="sm"
+        >
+          Edit Profile
+        </Button>
+      </div>
+    </div>
+  </div>
 
-            <div>
-              <h1 className="text-3xl font-bold">{userState.name}</h1>
-              <p className="text-sm text-gray-700 mt-1">
-                {userState.email} • {userState.location}
-              </p>
-              {/* 🎓 School / Class / Grade */}
-              <p className="mt-1 text-sm text-gray-800 font-medium">
-                🎓 {userState.school} • Class {userState.class} 
-                
-                {/* Grade{" "}
-                {userState.grade} */}
-              </p>
-              <p className="mt-2 text-gray-700">{userState.summary}</p>
+  {/* USER INFO + EVENT CARD — Formal Row Layout */}
+  <div className="max-w-7xl mx-auto px-6 pb-10">
+    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+      
+      {/* LEFT: User Profile Card */}
+      <div className="flex items-center gap-6 flex-1 bg-white/60 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-white/50">
+        {/* Avatar */}
+        <div className="h-20 w-20 rounded-full border-4 border-white shadow-lg overflow-hidden">
+          {userState.avatar ? (
+            <img
+              src={userState.avatar}
+              alt={userState.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <User className="h-8 w-8 text-gray-600 mx-auto mt-6" />
+          )}
+        </div>
 
-              <div className="flex flex-wrap gap-2 mt-3">
-                {userState.tags.map((t, i) => (
-                  <Badge
-                    key={i}
-                    className="bg-gradient-to-r from-sky-400 to-indigo-500 text-white rounded-full text-xs px-3 py-1"
-                  >
-                    {t}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+        {/* User Details */}
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-800">{userState.name}</h1>
+            <Badge variant="secondary" className="text-xs px-2 py-1 bg-gray-100 text-gray-700">
+              Class {userState.class}
+            </Badge>
           </div>
 
-          <Button
-            onClick={() => setEditing(true)}
-            className="bg-white text-pink-600 hover:bg-pink-50 shadow px-5 py-2 rounded-xl"
-          >
-            Edit Profile
-          </Button>
+          <p className="text-sm text-gray-600">
+            {userState.email} • {userState.phone || 'Not set'}
+          </p>
+
+          <p className="text-sm font-medium text-gray-700">
+            🎓 {userState.school || 'Not set'}
+          </p>
+
+          <p className="text-gray-600 leading-relaxed line-clamp-2">
+            {userState.summary}
+          </p>
+
+          {/* Tags */}
+          <div className="flex flex-wrap gap-2 mt-2">
+            {userState.tags.slice(0, 3).map((tag, i) => (
+              <Badge
+                key={i}
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs px-3 py-1"
+              >
+                {tag}
+              </Badge>
+            ))}
+            {userState.tags.length > 3 && (
+              <Badge variant="outline" className="text-xs px-3 py-1">
+                +{userState.tags.length - 3} more
+              </Badge>
+            )}
+          </div>
         </div>
-      </section>
+      </div>
+
+      {/* RIGHT: Next Event Card */}
+      <div className="w-full lg:w-80 bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50 backdrop-blur-md shadow-lg rounded-2xl p-6 border border-white/50">
+        <div className="flex items-center gap-3 mb-3">
+          <CalendarIcon className="h-5 w-5 text-indigo-600" />
+          <h3 className="font-semibold text-gray-800 text-lg">Next Event</h3>
+        </div>
+
+        {nextEvent ? (
+          <>
+            <h4 className="font-bold text-gray-900 text-base mb-2 line-clamp-1">
+              {nextEvent.title}
+            </h4>
+            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+              {nextEvent.description}
+            </p>
+            <div className="text-xs text-gray-500 mb-4">
+              {formatDate(nextEvent.date)} • {nextEvent.location}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("/timeline/subscribed-events")}
+                className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                View
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  // Calendar add logic
+                  const event = nextEvent;
+                  const title = encodeURIComponent(event.title);
+                  const details = encodeURIComponent(event.description || "");
+                  const location = encodeURIComponent(event.location || "");
+
+                  const start = new Date(event.date)
+                    .toISOString()
+                    .replace(/[-:]/g, "")
+                    .split(".")[0] + "Z";
+
+                  const endDate = new Date(event.date);
+                  endDate.setHours(endDate.getHours() + 1);
+
+                  const end = endDate
+                    .toISOString()
+                    .replace(/[-:]/g, "")
+                    .split(".")[0] + "Z";
+
+                  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}&dates=${start}/${end}`;
+                  window.open(url, "_blank");
+                }}
+                className="flex-1 bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                Add to Calendar
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-8">
+            <CalendarIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-600 text-sm">No upcoming events</p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</section>
+
+
 
       {/* BODY */}
       <div className="max-w-7xl mx-auto px-6 py-10">
