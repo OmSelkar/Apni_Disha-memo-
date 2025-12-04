@@ -1,32 +1,43 @@
-import requests
+# upload_timeline.py
+
 import json
+from services.connectDB import connect_db
 
-BASE_URL = "http://127.0.0.1:8080/api"
-USER_ID = "user_35l6iiRSXODVUmL5V2v8EEb7CxH"  # Replace with your test user
+# Path to your JSON file
+JSON_FILE_PATH = r"C:\Users\LOQ\Desktop\New folder (3)\ApniDisha\web\Backend\data\time.json"
+COLLECTION_NAME = "timeline"
 
-def test_recommend_colleges():
-    response = requests.get(f"{BASE_URL}/colleges/recommend/{USER_ID}")
-    
-    print(f"Status Code: {response.status_code}")
-    print(f"Response Headers: {dict(response.headers)}")
-    
-    if response.status_code == 200:
-        data = response.json()
-        print(json.dumps(data, indent=2))
-        
-        # Assertions
-        assert data["success"] is True
-        assert isinstance(data["data"], list)
-        assert len(data["data"]) <= 10  # Top 10
-        assert all("matched_courses" in college for college in data["data"])
-        
-        # Check sorting (highest rating first)
-        ratings = [c["rating"] for c in data["data"]]
-        assert ratings == sorted(ratings, reverse=True)  # Non-increasing
-        
-        print("✅ All tests passed!")
-    else:
-        print(f"❌ Failed: {response.text}")
+def upload_timeline_data():
+    # Connect to DB
+    db = connect_db()
+    if db is None:
+        print("Failed to connect to database. Exiting.")
+        return
+
+    collection = db[COLLECTION_NAME]
+
+    try:
+        with open(JSON_FILE_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Handle different JSON structures
+        if isinstance(data, list):
+            # If it's a list of documents → bulk insert
+            result = collection.insert_many(data)
+            print(f"Inserted {len(result.inserted_ids)} documents into '{COLLECTION_NAME}'")
+        elif isinstance(data, dict):
+            # If it's a single document
+            result = collection.insert_one(data)
+            print(f"Inserted 1 document with _id: {result.inserted_id}")
+        else:
+            print("Unsupported JSON structure. Must be object or array.")
+
+    except FileNotFoundError:
+        print(f"File '{JSON_FILE_PATH}' not found!")
+    except json.JSONDecodeError as e:
+        print(f"Invalid JSON in file: {e}")
+    except Exception as e:
+        print(f"Error during insert: {e}")
 
 if __name__ == "__main__":
-    test_recommend_colleges()
+    upload_timeline_data()
