@@ -1,274 +1,197 @@
-import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
-import { Search, ChevronLeft, ChevronRight, Calendar as CalendarIcon,Bell,Calendar1,MapPin,ExternalLink, BellOff } from 'lucide-react';
-import { timelineAPI } from '../../services/api';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Input } from "../ui/input";
+import { Search, Bell, Calendar1, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 
-const ModernTimelineTracker = () => {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [subscribedEvents, setSubscribedEvents] = useState(new Set());
-  const [filter, setFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
-const [selectedEvent, setSelectedEvent] = useState(null);
+// 🔗 Hardcoded backend URL
+const API_URL = "http://127.0.0.1:8080/api/timeline";
 
-  const calendarRef = useRef(null);
+/* ----------------------------------------------------
+   🎓 DEGREE → SHORT NAME MAPPER
+------------------------------------------------------*/
+const mapDegreeToShortName = (degree) => {
+  if (!degree) return null;
+  const d = degree.toLowerCase();
 
-  useEffect(() => {
-    fetchEvents();
-    fetchSubscriptions();
-  }, []);
+  if (d.includes("b.tech")) return "BTECH";
+  if (d.includes("b.sc")) return "BSC";
+  if (d.includes("bca")) return "BCA";
+  if (d.includes("b.com")) return "BCOM";
+  if (d.includes("ba")) return "BA";
+  if (d.includes("b.arch")) return "BARCH";
+  if (d.includes("b.des")) return "B.DESIGN";
 
-  const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      const response = await timelineAPI.getEvents();
-      setEvents(response.data.data || response.data.events || []);
-    } catch (error) {
-      console.error('Failed to fetch events:', error);
-      // Fallback mock data
-      setEvents([
-        {
-          _id: '1',
-          title: 'College Admission Applications Open',
-          description: 'Start of admission process for government colleges.',
-          date: new Date('2024-03-01'),
-          type: 'admission',
-          category: 'Important',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/admissions',
-        },
-        {
-          _id: '2',
-          title: 'Scholarship Applications Deadline',
-          description: 'Last date to apply for merit-based scholarships.',
-          date: new Date('2024-04-15'),
-          type: 'scholarship',
-          category: 'Deadline',
-          location: 'Various',
-          isActive: true,
-          link: 'https://example.com/scholarships',
-        },
-        {
-          _id: '3',
-          title: 'Spring Semester Registration',
-          description: 'Students must complete course registration for Spring 2024 semester.',
-          date: new Date('2024-02-20'),
-          type: 'exam',
-          category: 'Important',
-          location: 'Campus Portal',
-          isActive: true,
-          link: 'https://example.com/registration',
-        },
-        {
-          _id: '4',
-          title: 'National Science Conference',
-          description: 'Annual conference for research students and faculty.',
-          date: new Date('2024-05-10'),
-          type: 'event',
-          category: 'Event',
-          location: 'Bangalore',
-          isActive: true,
-          link: 'https://example.com/conference',
-        },
-        {
-          _id: '5',
-          title: 'Alumni Meet 2024',
-          description: 'Reconnect with alumni and network with industry experts.',
-          date: new Date('2024-06-15'),
-          type: 'event',
-          category: 'Event',
-          location: 'IIT Delhi Campus',
-          isActive: true,
-          link: 'https://example.com/alumni',
-        },
-        {
-          _id: '6',
-          title: 'Symbiosis International University Entrance Exam',
-          description: 'Reminder: Entrance exam scheduled for Symbiosis University.',
-          date: new Date('2024-08-10T09:00:00'),
-          type: 'exam',
-          category: 'Exam',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/symbiosis-exam',
-        },
-        {
-          _id: '7',
-          title: 'MIT Manipal Scholarship Announcement',
-          description: 'Merit-based scholarship results will be announced soon.',
-          date: new Date('2024-08-15T12:00:00'),
-          type: 'scholarship',
-          category: 'Announcement',
-          location: 'Manipal',
-          isActive: true,
-          link: 'https://example.com/mit-scholarship',
-        },
-        {
-          _id: '8',
-          title: 'IISc Bangalore Research Internship Opening',
-          description: 'Applications open for summer research internships.',
-          date: new Date('2024-09-01T10:30:00'),
-          type: 'admission',
-          category: 'Opportunity',
-          location: 'Bangalore',
-          isActive: true,
-          link: 'https://example.com/iisc-internship',
-        },
-        {
-          _id: '9',
-          title: 'DU Arts Faculty Seminar',
-          description: 'Webinar for guidance on new arts programs and scholarships.',
-          date: new Date('2024-09-20T15:00:00'),
-          type: 'event',
-          category: 'Seminar',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/du-seminar',
-        },
-        {
-          _id: '10',
-          title: 'VIT Vellore Placement Drive',
-          description: 'Reminder: Campus placement drive starts next week.',
-          date: new Date('2024-10-05T09:00:00'),
-          type: 'event',
-          category: 'Placement',
-          location: 'Vellore',
-          isActive: true,
-          link: 'https://example.com/vit-placement',
-        },
-        // Additional 6-7 cards
-        {
-          _id: '11',
-          title: 'JEE Main 2025 Registration Opens',
-          description: 'Registration for JEE Main 2025 now open - prepare your documents.',
-          date: new Date('2024-11-01T10:00:00'),
-          type: 'exam',
-          category: 'Registration',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/jee-main-reg',
-        },
-        {
-          _id: '12',
-          title: 'NEET UG 2025 Mock Test Series',
-          description: 'Free mock test series for NEET UG 2025 preparation.',
-          date: new Date('2024-11-15T14:00:00'),
-          type: 'exam',
-          category: 'Preparation',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/neet-mock-tests',
-        },
-        {
-          _id: '13',
-          title: 'KVPY Scholarship Exam Date Announced',
-          description: 'KVPY 2025 exam date and registration details released.',
-          date: new Date('2024-12-01T11:00:00'),
-          type: 'scholarship',
-          category: 'Announcement',
-          location: 'Various',
-          isActive: true,
-          link: 'https://example.com/kvpy-2025',
-        },
-        {
-          _id: '14',
-          title: 'IIT Bombay Open House',
-          description: 'Virtual open house for prospective students and parents.',
-          date: new Date('2024-12-10T16:00:00'),
-          type: 'event',
-          category: 'Open House',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/iitb-open-house',
-        },
-        {
-          _id: '15',
-          title: 'CUET UG 2025 Syllabus Update',
-          description: 'Updated syllabus for CUET UG 2025 released - check changes.',
-          date: new Date('2024-12-20T09:30:00'),
-          type: 'exam',
-          category: 'Update',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/cuet-syllabus',
-        },
-        {
-          _id: '16',
-          title: 'INSPIRE Scholarship Results',
-          description: 'Results for INSPIRE scholarship 2024 announced.',
-          date: new Date('2025-01-05T12:00:00'),
-          type: 'scholarship',
-          category: 'Results',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/inspire-results',
-        },
-        {
-          _id: '17',
-          title: 'BITSAT 2025 Registration',
-          description: 'BITSAT 2025 registration portal opens for session 1.',
-          date: new Date('2025-01-15T10:00:00'),
-          type: 'admission',
-          category: 'Registration',
-          location: 'Online',
-          isActive: true,
-          link: 'https://example.com/bitsat-reg',
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-const addToGoogleCalendar = (event) => {
-  const title = encodeURIComponent(event.title);
-  const details = encodeURIComponent(event.description || "");
-  const location = encodeURIComponent(event.location || "");
-
-  const start = new Date(event.date)
-    .toISOString()
-    .replace(/[-:]/g, "")
-    .split(".")[0] + "Z";
-
-  const endDate = new Date(event.date);
-  endDate.setHours(endDate.getHours() + 1);
-
-  const end = endDate
-    .toISOString()
-    .replace(/[-:]/g, "")
-    .split(".")[0] + "Z";
-
-  const url = `
-    https://calendar.google.com/calendar/render?action=TEMPLATE
-    &text=${title}
-    &details=${details}
-    &location=${location}
-    &dates=${start}/${end}
-  `.replace(/\s+/g, "");
-
-  window.open(url, "_blank");
+  return null;
 };
 
+/* ----------------------------------------------------
+   🗓 PROPER DATE FORMATTER (Range Kept As-Is)
+------------------------------------------------------*/
+const formatDateProper = (dateText) => {
+  if (!dateText) return "Date Not Available";
+  // Just beautify hyphens a bit
+  return dateText.replace(/-/g, "–");
+};
 
-  const fetchSubscriptions = async () => {
-    try {
-      const response = await timelineAPI.getMySubscriptions();
-      const subscribed = new Set(response.data.data?.map(sub => sub.eventId) || []);
-      setSubscribedEvents(subscribed);
-    } catch (error) {
-      console.error('Failed to fetch subscriptions:', error);
+/* ----------------------------------------------------
+   🧠 DATE PARSER FOR SORTING (Nearest Exam First)
+------------------------------------------------------*/
+const monthIndex = {
+  january: 0,
+  february: 1,
+  march: 2,
+  april: 3,
+  may: 4,
+  june: 5,
+  july: 6,
+  august: 7,
+  september: 8,
+  october: 9,
+  november: 10,
+  december: 11,
+};
+
+const parseExamDate = (dateText) => {
+  if (!dateText) return null;
+  let s = dateText.trim();
+
+  // Case 1: ISO style "2026-03-24" or "2026-03-24 to 2026-03-25"
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const firstPart = s.split("to")[0].trim();
+    const d = new Date(firstPart);
+    return isNaN(d) ? null : d;
+  }
+
+  // Find year
+  const yearMatch = s.match(/(\d{4})/);
+  if (!yearMatch) return null;
+  const yearStr = yearMatch[1];
+  const year = parseInt(yearStr, 10);
+  const yearIndexPos = s.indexOf(yearStr);
+
+  // Find month name
+  const monthRegex =
+    /January|February|March|April|May|June|July|August|September|October|November|December/i;
+  const monthMatch = s.match(monthRegex);
+  let month = 0;
+  if (monthMatch) {
+    month = monthIndex[monthMatch[0].toLowerCase()] ?? 0;
+  }
+
+  // Find day BEFORE the year (so "2026" doesn't become the day)
+  const beforeYear = s.slice(0, yearIndexPos);
+  const dayMatch = beforeYear.match(/(\d{1,2})/);
+  const day = dayMatch ? parseInt(dayMatch[1], 10) : 1;
+
+  const d = new Date(year, month, day);
+  return isNaN(d) ? null : d;
+};
+
+const getExamSortDate = (examObj) => {
+  if (!examObj?.events || !Array.isArray(examObj.events)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  let best = Number.POSITIVE_INFINITY;
+
+  for (const ev of examObj.events) {
+    const d = parseExamDate(ev.date);
+    if (d) {
+      const t = d.getTime();
+      if (t < best) best = t;
     }
-  };
+  }
 
-function CalendarConfirmModal({ open, onClose, onConfirm }) {
+  return best;
+};
+
+/* ----------------------------------------------------
+   🎭 CATEGORY BADGE FROM SHORT NAMES
+------------------------------------------------------*/
+const getExamCategory = (shortNamesArr = []) => {
+  const names = shortNamesArr.map((s) => s.toUpperCase());
+
+  const hasAny = (...keys) => keys.some((k) => names.includes(k));
+
+  if (hasAny("BTECH", "ENGINEERING", "BE", "MCA", "BCA", "IT", "PCM"))
+    return "Engineering";
+
+  if (hasAny("BARCH", "ARCHITECTURE")) return "Architecture";
+
+  if (hasAny("B.DESIGN", "DESIGN", "NIFT", "NID", "FASHION"))
+    return "Design";
+
+  if (
+    hasAny(
+      "MBBS",
+      "MEDICAL",
+      "BDS",
+      "NURSING",
+      "BAMS",
+      "BVSC",
+      "PHARMA",
+      "PCB"
+    )
+  )
+    return "Medical";
+
+  if (hasAny("LAW", "LLB", "LLB_3YR", "LLB_5YR", "NLLU")) return "Law";
+
+  if (
+    hasAny(
+      "CA",
+      "CMA",
+      "CS",
+      "B.COM",
+      "BCOM",
+      "MBA",
+      "MMS",
+      "MANAGEMENT"
+    )
+  )
+    return "Commerce & Management";
+
+  return "General";
+};
+
+const categoryStyles = {
+  Engineering: {
+    bg: "bg-blue-100",
+    text: "text-blue-800",
+  },
+  Architecture: {
+    bg: "bg-amber-100",
+    text: "text-amber-800",
+  },
+  Design: {
+    bg: "bg-purple-100",
+    text: "text-purple-800",
+  },
+  Medical: {
+    bg: "bg-green-100",
+    text: "text-green-800",
+  },
+  Law: {
+    bg: "bg-red-100",
+    text: "text-red-800",
+  },
+  "Commerce & Management": {
+    bg: "bg-yellow-100",
+    text: "text-yellow-800",
+  },
+  General: {
+    bg: "bg-gray-100",
+    text: "text-gray-800",
+  },
+};
+
+/* ----------------------------------------------------
+   📆 Small Confirm Modal Component
+------------------------------------------------------*/
+function CalendarConfirmModal({ open, onClose, onConfirm, examName }) {
   if (!open) return null;
 
   return (
@@ -278,8 +201,7 @@ function CalendarConfirmModal({ open, onClose, onConfirm }) {
           Add to Google Calendar?
         </h2>
         <p className="text-sm text-gray-600 mt-2">
-          You’ve subscribed to this event.  
-          Do you also want to add it to your Google Calendar?
+          You’re about to add <b>{examName}</b> to your Google Calendar.
         </p>
 
         <div className="flex justify-end gap-3 mt-5">
@@ -302,79 +224,150 @@ function CalendarConfirmModal({ open, onClose, onConfirm }) {
   );
 }
 
-  
-  const handleSubscribe = async (eventId) => {
+const ModernTimelineTracker = () => {
+  const [events, setEvents] = useState([]); // exams list
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null); // whole exam object
+
+  const [detailsModal, setDetailsModal] = useState(null); // exam object for details
+
+  // Store which short_names we used for fetching (for tiny labels)
+  const [matchedShortNames, setMatchedShortNames] = useState([]);
+
+  /* ----------------------------------------------------
+     🧠 FETCH ALL EXAMS BASED ON MULTIPLE DEGREES
+  ------------------------------------------------------*/
+  const fetchEvents = async () => {
     try {
-      if (subscribedEvents.has(eventId)) {
-        await timelineAPI.unsubscribe(eventId);
-        setSubscribedEvents(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(eventId);
-          return newSet;
+      setLoading(true);
+
+      const raw = localStorage.getItem("apnidisha_student_profile");
+      let degreesList = [];
+
+      if (raw) {
+        const user = JSON.parse(raw);
+        const recommendations = user?.quiz_results?.recommendations || [];
+
+        // Extract all degrees from all recommendations
+        recommendations.forEach((rec) => {
+          rec.degrees.forEach((d) => {
+            if (d.degree) degreesList.push(d.degree);
+          });
         });
-        toast.success('Unsubscribed from event notifications');
-      } else {
-        await timelineAPI.subscribe(eventId);
-        setSubscribedEvents(prev => new Set([...prev, eventId]));
-        toast.success('Subscribed to event notifications');
       }
-    } catch {
-      toast.error('Failed to update subscription');
+
+      // Convert to short_names
+      let shortNames = degreesList
+        .map((d) => mapDegreeToShortName(d))
+        .filter(Boolean);
+
+      // Remove duplicates
+      shortNames = [...new Set(shortNames)];
+
+      console.log("All short_names generated:", shortNames);
+      setMatchedShortNames(shortNames);
+
+      if (shortNames.length === 0) {
+        toast.error("No degrees detected for exam matching");
+        setEvents([]);
+        return;
+      }
+
+      // Fetch API for each short_name in parallel
+      const requests = shortNames.map((sn) =>
+        fetch(`${API_URL}?short_name=${sn}`).then((res) => res.json())
+      );
+
+      const results = await Promise.all(requests);
+
+      // Merge results
+      let merged = [];
+      results.forEach((res) => {
+        if (Array.isArray(res)) merged.push(...res);
+      });
+
+      // Remove duplicates by exam name
+      const unique = {};
+      merged.forEach((exam) => {
+        unique[exam.exam] = exam;
+      });
+
+      const finalList = Object.values(unique);
+
+      console.log("Final merged exam timeline:", finalList);
+
+      setEvents(finalList);
+    } catch (error) {
+      console.error("Timeline fetch failed:", error);
+      toast.error("Failed to load exams");
+      setEvents([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDualSubscribe = async (eventId, event) => {
-  await handleSubscribe(eventId); // your existing logic
+  useEffect(() => {
+    fetchEvents();
+  }, []);
 
-  setSelectedEvent(event);    // store event details
-  setShowCalendarModal(true); // open popup
-};
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
+  /* ----------------------------------------------------
+     🔔 Bell → Google Calendar
+  ------------------------------------------------------*/
+  const handleBellClick = (examObj) => {
+    setSelectedEvent(examObj);
+    setShowCalendarModal(true);
   };
 
-  const getEventTypeColor = (type) => {
-    const colors = {
-      admission: 'bg-blue-100 text-blue-800',
-      scholarship: 'bg-green-100 text-green-800',
-      exam: 'bg-orange-100 text-orange-800',
-      event: 'bg-purple-100 text-purple-800',
-      deadline: 'bg-red-100 text-red-800',
-      default: 'bg-gray-100 text-gray-800'
-    };
-    return colors[type] || colors.default;
+  const addToGoogleCalendar = (examObj) => {
+    if (!examObj) return;
+
+    const title = encodeURIComponent(examObj.exam || "Exam Reminder");
+    const details = encodeURIComponent(
+      examObj.verification_method || examObj.conducting_body || ""
+    );
+
+    // For now, generic time block (you can later refine using parsed date)
+    const start = "20260101T090000Z";
+    const end = "20260101T100000Z";
+
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${start}/${end}`;
+    window.open(url, "_blank");
   };
 
-  const filteredEvents = events.filter(event => {
-    if (filter === 'all') return true;
-    return event.type === filter;
+  /* ----------------------------------------------------
+     🔍 Search Filter + Sorting (Ascending by earliest exam)
+  ------------------------------------------------------*/
+  const filteredEvents = events.filter((exam) => {
+    const search = searchQuery.toLowerCase();
+    return (
+      exam.exam.toLowerCase().includes(search) ||
+      exam.conducting_body?.toLowerCase().includes(search)
+    );
   });
 
-  const searchFilteredEvents = filteredEvents.filter(event =>
-    event.title.toLowerCase().includes(searchQuery) ||
-    event.description.toLowerCase().includes(searchQuery) ||
-    event.category?.toLowerCase().includes(searchQuery)
+  const sortedEvents = [...filteredEvents].sort(
+    (a, b) => getExamSortDate(a) - getExamSortDate(b)
   );
 
+  /* ----------------------------------------------------
+     ⏳ Loading Skeleton (nice UI)
+  ------------------------------------------------------*/
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto">
           <div className="animate-pulse space-y-6">
-            <div className="h-10 bg-gray-200 rounded-lg w-1/4"></div>
-            <div className="flex gap-2">
-              {[1,2,3,4,5].map(i => <div key={i} className="h-10 bg-gray-200 rounded-lg flex-1"></div>)}
+            <div className="h-9 bg-gray-200 rounded-lg w-1/3" />
+            <div className="h-5 bg-gray-200 rounded-lg w-1/2" />
+            <div className="flex gap-3 mt-4">
+              <div className="h-10 bg-gray-200 rounded-lg flex-1" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="h-64 bg-gray-200 rounded-2xl"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-64 bg-gray-200 rounded-2xl" />
               ))}
             </div>
           </div>
@@ -383,158 +376,269 @@ function CalendarConfirmModal({ open, onClose, onConfirm }) {
     );
   }
 
+  /* ----------------------------------------------------
+     🎨 Main UI (Original Style A + New Badges + Labels)
+  ------------------------------------------------------*/
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Timeline Tracker</h1>
-          <p className="text-gray-600 text-lg">Stay updated with important dates and deadlines</p>
-        </div>
-
-        {/* Filters + Search */}
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={filter === 'all' ? 'default' : 'outline'}
-              onClick={() => setFilter('all')}
-              size="sm"
-              className="rounded-full px-4 py-2"
-            >
-              All Events
-            </Button>
-            <Button
-              variant={filter === 'subscribed' ? 'default' : 'outline'}
-              onClick={() => setFilter('subscribed')}
-              size="sm"
-              className="rounded-full px-4 py-2"
-            >
-              Subscribed
-            </Button>
-            <Button
-              variant={filter === 'admission' ? 'default' : 'outline'}
-              onClick={() => setFilter('admission')}
-              size="sm"
-              className="rounded-full px-4 py-2"
-            >
-              Admissions
-            </Button>
-            <Button
-              variant={filter === 'scholarship' ? 'default' : 'outline'}
-              onClick={() => setFilter('scholarship')}
-              size="sm"
-              className="rounded-full px-4 py-2"
-            >
-              Scholarships
-            </Button>
-            <Button
-              variant={filter === 'exam' ? 'default' : 'outline'}
-              onClick={() => setFilter('exam')}
-              size="sm"
-              className="rounded-full px-4 py-2"
-            >
-              Exams
-            </Button>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search events..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value.toLowerCase())}
-              className="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-<CalendarConfirmModal
-  open={showCalendarModal}
-  onClose={() => setShowCalendarModal(false)}
-  onConfirm={() => {
-    addToGoogleCalendar(selectedEvent);
-    setShowCalendarModal(false);
-  }}
-/>
-
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {searchFilteredEvents.map((event) => (
-            <Card key={event._id} className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl border-0 shadow-md bg-white/80 backdrop-blur-sm flex flex-col">
-              <CardHeader className="pb-4 p-6 flex-shrink-0">
-                <div className="flex items-start justify-between mb-3">
-                  <Badge className={`${getEventTypeColor(event.type)} rounded-full px-3 py-1 text-xs font-medium`}>{event.type}</Badge>
-                  <Button
-  variant="ghost"
-  size="sm"
-  onClick={() => handleDualSubscribe(event._id, event)}
-  className="ml-4 -mt-1"
->
-  {subscribedEvents.has(event._id) ? (
-    <BellOff className="h-4 w-4" />
-  ) : (
-    <Bell className="h-4 w-4 text-blue-600" />
-  )}
-</Button>
-
-                </div>
-                <CardTitle className="text-lg font-semibold text-gray-900 leading-tight mb-2 line-clamp-2">{event.title}</CardTitle>
-                <p className="text-gray-600 text-sm leading-relaxed line-clamp-2">{event.description}</p>
-              </CardHeader>
-              <CardContent className="p-6 pt-0 flex-1 flex flex-col justify-between">
-                {/* Info Bar */}
-                <div className="mb-4">
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1 min-w-fit">
-                      <Calendar1 className="h-4 w-4" />
-                      <span>{formatDate(event.date)}</span>
-                    </div>
-                    {event.location && (
-                      <div className="flex items-center gap-1 min-w-fit">
-                        <MapPin className="h-4 w-4" />
-                        <span>{event.location}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {event.category && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <Badge variant="outline" className="text-xs rounded-full border-gray-200 text-gray-600 hover:bg-gray-100">
-                      {event.category}
-                    </Badge>
-                  </div>
-                )}
-                {/* Button - Always at bottom */}
-                <div className="mt-auto pt-4">
-                  <div className="flex gap-3">
-                    <Button asChild size="sm" className="flex-1 rounded-xl">
-                      {event.link ? (
-                        <a href={event.link} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Learn More
-                        </a>
-                      ) : (
-                        <span>Details</span>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {searchFilteredEvents.length === 0 && (
-          <div className="text-center py-12 col-span-full">
-            <Calendar1 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>
-            <p className="text-gray-600">
-              {searchQuery ? `No events match "${searchQuery}".` : 
-               filter === 'all' ? 'No events are currently available.' : 
-               `No events found for the selected filter: ${filter}`}
+    <>
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+              Timeline Tracker
+            </h1>
+            <p className="text-gray-600 text-lg">
+              Stay updated with all important entrance exams based on your
+              recommended paths.
             </p>
           </div>
-        )}
+
+          {/* Search */}
+          <div className="mb-6 space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search exams or conducting bodies..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Calendar confirm modal */}
+          <CalendarConfirmModal
+            open={showCalendarModal}
+            examName={selectedEvent?.exam}
+            onClose={() => setShowCalendarModal(false)}
+            onConfirm={() => {
+              addToGoogleCalendar(selectedEvent);
+              setShowCalendarModal(false);
+            }}
+          />
+
+          {/* Content Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {sortedEvents.map((examObj, idx) => {
+              const firstEvent = examObj.events?.[0];
+              const displayDate = formatDateProper(firstEvent?.date);
+
+              const category = getExamCategory(examObj.short_name || []);
+              const catStyle =
+                categoryStyles[category] || categoryStyles["General"];
+
+              // Tiny degree labels: intersection of exam short_name with matchedShortNames
+              const degreeLabels = (examObj.short_name || []).filter((tag) =>
+                matchedShortNames.includes(tag)
+              );
+
+              return (
+                <Card
+                  key={idx}
+                  className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl border-0 shadow-md bg-white/80 backdrop-blur-sm flex flex-col"
+                >
+                  <CardHeader className="pb-4 p-6 flex-shrink-0">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        {/* Type Tag */}
+                        <Badge className="bg-orange-100 text-orange-800 rounded-full px-3 py-1 text-xs font-medium">
+                          Exam
+                        </Badge>
+                        {/* Category Tag */}
+                        <Badge
+                          className={`${catStyle.bg} ${catStyle.text} rounded-full px-3 py-1 text-xs font-medium`}
+                        >
+                          {category}
+                        </Badge>
+                      </div>
+
+                      {/* Bell → Calendar */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleBellClick(examObj)}
+                        className="ml-2 -mt-1"
+                      >
+                        <Bell className="h-4 w-4 text-blue-600" />
+                      </Button>
+                    </div>
+
+                    <CardTitle className="text-lg font-semibold text-gray-900 leading-tight mb-1 line-clamp-2">
+                      {examObj.exam}
+                    </CardTitle>
+                    {examObj.conducting_body && (
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        {examObj.conducting_body}
+                      </p>
+                    )}
+
+                    {/* Degree labels: BTECH • BARCH • B.DESIGN */}
+                    {degreeLabels.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        {degreeLabels.join(" • ")}
+                      </p>
+                    )}
+                  </CardHeader>
+
+                  <CardContent className="p-6 pt-0 flex-1 flex flex-col justify-between">
+                    {/* Info Bar */}
+                    <div className="mb-4">
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1 min-w-fit">
+                          <Calendar1 className="h-4 w-4" />
+                          <span>{displayDate}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Official website */}
+                    {examObj.official_website && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full text-xs border-gray-200 text-blue-700 hover:bg-blue-50"
+                        >
+                          <a
+                            href={examObj.official_website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Official Website
+                          </a>
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* View details */}
+                    <div className="mt-auto pt-4">
+                      <div className="flex gap-3">
+                        <Button
+                          size="sm"
+                          className="flex-1 rounded-xl"
+                          variant="outline"
+                          onClick={() => setDetailsModal(examObj)}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {sortedEvents.length === 0 && (
+            <div className="text-center py-12 col-span-full">
+              <Calendar1 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No exams found
+              </h3>
+              <p className="text-gray-600">
+                Try changing your search or check back later for new updates.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Details Modal (card style) */}
+      {detailsModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-[95%] max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {detailsModal.exam}
+            </h2>
+
+            {detailsModal.conducting_body && (
+              <p className="text-gray-700 mb-2">
+                <span className="font-semibold">Conducting Body:</span>{" "}
+                {detailsModal.conducting_body}
+              </p>
+            )}
+
+            {detailsModal.official_website && (
+              <p className="text-gray-700 mb-2">
+                <span className="font-semibold">Official Website:</span>{" "}
+                <a
+                  href={detailsModal.official_website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline break-all"
+                >
+                  {detailsModal.official_website}
+                </a>
+              </p>
+            )}
+
+            {detailsModal.verification_method && (
+              <p className="text-gray-700 mb-4">
+                <span className="font-semibold">Verification:</span>{" "}
+                {detailsModal.verification_method}
+              </p>
+            )}
+
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Exam Events
+            </h3>
+
+            <div className="space-y-3">
+              {detailsModal.events?.map((ev, idx) => {
+                const niceDate = formatDateProper(ev.date);
+                const firstLink =
+                  Array.isArray(ev.sources) && ev.sources.length > 0
+                    ? ev.sources[0]
+                    : null;
+
+                return (
+                  <div
+                    key={idx}
+                    className="border border-gray-100 rounded-xl bg-gray-50 p-3"
+                  >
+                    <p className="font-medium text-gray-900 mb-1">
+                      {ev.event}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Date:</span> {niceDate}
+                    </p>
+                    {ev.status && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Status:</span>{" "}
+                        {ev.status}
+                      </p>
+                    )}
+                    {firstLink && (
+                      <p className="text-sm text-gray-700 mt-1">
+                        <span className="font-semibold">Source:</span>{" "}
+                        <a
+                          href={firstLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline break-all"
+                        >
+                          {firstLink}
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <Button variant="outline" onClick={() => setDetailsModal(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
