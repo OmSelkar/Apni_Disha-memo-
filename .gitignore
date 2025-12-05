@@ -30,3 +30,15 @@ Thumbs.db
 
 __pycache__/
 *.pyc
+
+# Python virtual environment
+venv/
+Backend/venv/
+
+# Python build cache
+**/__pycache__/
+*.pyc
+
+# Ignore extra requirements file
+Backend/requirements1.txt
+requirements1.txt

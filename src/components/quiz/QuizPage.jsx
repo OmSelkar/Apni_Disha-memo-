@@ -10,8 +10,12 @@ import { motion, AnimatePresence } from "framer-motion"
 import Confetti from "react-dom-confetti"
 import axios from "axios"
 
+// Configurable constants
+const NUM_RIASEC_QUESTIONS = 9
+const NUM_MCQ_QUESTIONS = 5
+const TOTAL_QUESTIONS = NUM_RIASEC_QUESTIONS + NUM_MCQ_QUESTIONS
+
 const API_BASE_URL = "http://127.0.0.1:8080/api/quiz"
-const TOTAL_QUESTIONS = 11
 
 /* -------------------------
    Small presentational helpers
@@ -133,7 +137,7 @@ const QuizPage = () => {
         let tempAsked = { R: [], I: [], A: [], S: [], E: [], C: [] }
         let tempQuestions = []
 
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < NUM_RIASEC_QUESTIONS; i++) {
           const response = await axios.post(`${API_BASE_URL}/next-question`, { questions_asked: tempAsked })
           if (response.data.success) {
             const { trait, question } = response.data
@@ -257,11 +261,11 @@ const QuizPage = () => {
     }
     setError("")
 
-    if (current === 5 && !mcqLoaded) {
+    if (current === NUM_RIASEC_QUESTIONS - 1 && !mcqLoaded) {
       // Load MCQs after RIASEC phase
       setLoading(true)
       try {
-        const riasecHistory = questions.slice(0, 6).map((qq, i) => ({
+        const riasecHistory = questions.slice(0, NUM_RIASEC_QUESTIONS).map((qq, i) => ({
           trait: qq.trait,
           question: qq.text,
           rating: Number(answers[qq.id]),
@@ -269,7 +273,7 @@ const QuizPage = () => {
 
         const response = await axios.post(`${API_BASE_URL}/generate-mcq`, {
           qa_history: riasecHistory,
-          num_questions: 5,
+          num_questions: NUM_MCQ_QUESTIONS,
         })
 
         if (response.data.success) {
@@ -283,7 +287,7 @@ const QuizPage = () => {
           }))
           setQuestions((prev) => [...prev, ...mcqs])
           setMcqLoaded(true)
-          setCurrent(6)
+          setCurrent(NUM_RIASEC_QUESTIONS)
         } else {
           setError(response.data.message || "Failed to generate follow-up questions.")
         }
@@ -318,15 +322,15 @@ const QuizPage = () => {
     setShowConfetti(true)
 
     try {
-      // Prepare RIASEC answers (first 6)
-      const riasecAnswers = questions.slice(0, 6).map((question) => ({
+      // Prepare RIASEC answers (first NUM_RIASEC_QUESTIONS)
+      const riasecAnswers = questions.slice(0, NUM_RIASEC_QUESTIONS).map((question) => ({
         trait: question.trait,
         question: question.text,
         rating: Number(answers[question.id]),
       }))
 
-      // Prepare MCQ answers (last 5)
-      const mcqAnswers = questions.slice(6).map((question) => ({
+      // Prepare MCQ answers (last NUM_MCQ_QUESTIONS)
+      const mcqAnswers = questions.slice(NUM_RIASEC_QUESTIONS).map((question) => ({
         question: question.text,
         answer: answers[question.id],
       }))
@@ -410,7 +414,7 @@ const QuizPage = () => {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap" aria-hidden="true">
                   {Array.from({ length: TOTAL_QUESTIONS }).map((_, idx) => {
-                    const id = idx < 6 ? `q${idx}` : `mcq${idx - 6}`
+                    const id = idx < NUM_RIASEC_QUESTIONS ? `q${idx}` : `mcq${idx - NUM_RIASEC_QUESTIONS}`
                     return (
                       <motion.div
                         key={idx}
