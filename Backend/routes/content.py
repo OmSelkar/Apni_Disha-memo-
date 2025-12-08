@@ -54,58 +54,135 @@ def get_content_by_id(id):
     else:
         return jsonify({"success": False, "message": "Content not found"}), 404 
 
-    return jsonify(content_list), 200
-
-
+    
 
 # ---------------------------------------------------------
-# NEW ROUTE: UPLOAD COURSE JSON → Course COLLECTION
+# NEW ROUTE: GET CONTENT BY STREAMS ARRAY
 # ---------------------------------------------------------
-@content_routes.route("/content/upload-courses", methods=["POST"])
-def upload_courses_json():
+@content_routes.route("/content/streams", methods=["POST"])
+def get_content_by_streams():
     db = connect_db()
+    data = request.get_json()
+    print("Received data for streams:", data)
 
-    # Path to your generated JSON file
-    JSON_PATH = r"C:\Users\LOQ\Desktop\New folder (3)\ApniDisha\web\Backend\data\college_courses_output2.json"
+    # Validate input
+    if not data or "recs" not in data:
+        return jsonify({"success": False, "message": "Field 'recs' (array of streams) is required"}), 400
 
-    # Check file exists
-    if not os.path.exists(JSON_PATH):
-        return jsonify({"success": False, "message": "JSON file not found"}), 404
+    recs = data.get("recs", [])
 
-    # Load JSON data
-    try:
-        with open(JSON_PATH, "r", encoding="utf-8") as f:
-            colleges = json.load(f)
-    except Exception as e:
-        return jsonify({"success": False, "message": f"Invalid JSON: {e}"}), 400
+    if not isinstance(recs, list):
+        return jsonify({"success": False, "message": "'recs' must be an array of strings"}), 400
 
-    # Create unique index for AISHE_code
-    db.Course.create_index("AISHE_code", unique=True)
+    if len(recs) == 0:
+        print("bhadwe, kuch nahi manga")
+        return jsonify([]), 200  # nothing requested → nothing returned
 
-    inserted = 0
-    updated = 0
+    # --- helper: generic normalizer for all degree/stream names ---
+    def normalize_label(value):
+        if value is None:
+            print("Warning: normalize_label received None value")
+            return None
+        if not isinstance(value, str):
+            value = str(value)
 
-    # Iterate over colleges and upsert into MongoDB
-    for college in colleges:
-        aishe = college.get("AISHE_code")
+        # lowercase
+        value = value.lower()
 
-        if not aishe:
+        # remove all non-alphanumeric chars (., spaces, -, _, etc.)
+        # "B.Tech" -> "btech"; "B Tech" -> "btech"; "B-Tech" -> "btech"
+        value = "".join(ch for ch in value if ch.isalnum())
+
+        return value
+
+    # Pre-normalize requested streams: ["BSc","BCom","BBA","BCA","B.Tech"] → {"bsc","bcom","bba","bca","btech"}
+    normalized_recs = {normalize_label(r) for r in recs if r is not None}
+    print("Normalized recs:", normalized_recs)
+
+    # Fetch ALL content from DB (no filter in Mongo)
+    contents_cursor = db.Content.find({})
+
+    contents = []
+    for c in contents_cursor:
+        title_raw = c.get("title", "") or ""
+        tags_raw = c.get("tags", []) or []
+
+        # Normalize title and tags
+        normalized_title = normalize_label(title_raw)
+        normalized_tags = [normalize_label(t) for t in tags_raw if t is not None]
+
+        print(f"\nDoc _id={c.get('_id')}")
+        print("  title:", title_raw)
+        print("  tags:", tags_raw)
+        print("  normalized_title:", normalized_title)
+        print("  normalized_tags:", normalized_tags)
+
+        matched = False
+        for rec_norm in normalized_recs:
+            if rec_norm is None:
+                continue
+
+            # 1) rec appears in title (e.g., "btech" in "btechcsefulldetails...") 
+            if rec_norm in normalized_title:
+                matched = True
+                print(f"  -> matched by title using rec={rec_norm!r}")
+                break
+
+            # 2) rec matches any tag (exact or substring both ways)
+            for tag_norm in normalized_tags:
+                if tag_norm is None:
+                    continue
+
+                if (
+                    tag_norm == rec_norm
+                    or tag_norm.startswith(rec_norm)
+                    or rec_norm.startswith(tag_norm)
+                    or rec_norm in tag_norm
+                    or tag_norm in rec_norm
+                ):
+                    matched = True
+                    print(f"  -> matched by tag {tag_norm!r} using rec={rec_norm!r}")
+                    break
+
+            if matched:
+                break
+
+        if not matched:
+            print("  -> no match, skipping")
             continue
 
-        result = db.Course.update_one(
-            {"AISHE_code": aishe},
-            {"$set": college},
-            upsert=True
-        )
+        # Make _id JSON-serializable
+        if "_id" in c:
+            c["_id"] = str(c["_id"])
 
-        if result.upserted_id:
-            inserted += 1
-        else:
-            updated += 1
+        # --- Normalize rating ---
+        rating = c.get("rating")
+        if isinstance(rating, dict) and "$numberDouble" in rating:
+            try:
+                c["rating"] = float(rating["$numberDouble"])
+            except (ValueError, TypeError):
+                c["rating"] = None
+        elif isinstance(rating, (int, float, str)):
+            try:
+                c["rating"] = float(rating)
+            except (ValueError, TypeError):
+                pass  # leave as is if it fails
 
-    return jsonify({
-        "success": True,
-        "message": "Course data uploaded successfully",
-        "inserted": inserted,
-        "updated": updated
-    }), 201
+        # --- Normalize downloads ---
+        downloads = c.get("downloads")
+        if isinstance(downloads, dict) and "$numberInt" in downloads:
+            try:
+                c["downloads"] = int(downloads["$numberInt"])
+            except (ValueError, TypeError):
+                c["downloads"] = None
+        elif isinstance(downloads, (int, float, str)):
+            try:
+                c["downloads"] = int(downloads)
+            except (ValueError, TypeError):
+                pass
+
+        contents.append(c)
+        print("  ✅ included in response")
+
+    print(f"\nTotal matched contents: {len(contents)}")
+    return jsonify(contents), 200

@@ -77,13 +77,17 @@ export default function ModernRecommendationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-xl">Loading…</div>
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Loading…
+      </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-10 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">{t("recommendations_1.title")}</h1>
+      <h1 className="text-3xl font-bold mb-2">
+        {t("recommendations_1.title")}
+      </h1>
       <p className="text-lg mb-6">{t("recommendations_1.subtitle")}</p>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -132,7 +136,7 @@ export default function ModernRecommendationsPage() {
         </TabsContent>
 
         <TabsContent value="content">
-          <ContentSection data={sampleData.content} />
+          <ContentSection />
         </TabsContent>
       </Tabs>
     </div>
