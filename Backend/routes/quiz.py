@@ -1,5 +1,3 @@
-# Backend/routes/quiz.py
-
 from flask import Blueprint, request, jsonify
 import json
 import random
@@ -13,7 +11,7 @@ load_dotenv()
 
 quiz_routes = Blueprint("quiz_routes", __name__)
 
-# ---------------- CONFIG ----------------
+
 BASE_DIR = Path(__file__).resolve().parent.parent  # Backend folder
 QUESTIONS_FILE = BASE_DIR / "services" / "questions.json"
 MODEL_NAME = "gemini-2.0-flash"
