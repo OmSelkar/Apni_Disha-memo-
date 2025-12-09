@@ -15,7 +15,10 @@ from routes.school_interest import school_interest_routes
 from routes.quiz import quiz_routes
 from routes.mindmap import mindmap_bp
 from routes.timeline import timeline_routes
+from routes.pata_nahi import voice_riasec_bp
 
+# NEW: Import the call blueprint
+from routes.voice_call_routes import call_bp  # Adjust filename if needed
 
 def create_app() -> Flask:
     load_dotenv()
@@ -59,6 +62,10 @@ def create_app() -> Flask:
     app.register_blueprint(timeline_routes, url_prefix="/api")
    
     app.register_blueprint(mindmap_bp, url_prefix="/api") 
+    app.register_blueprint(voice_riasec_bp, url_prefix="/api")
+
+    # NEW: Register the call blueprint
+    app.register_blueprint(call_bp, url_prefix="/api")
 
     @app.get("/health")
     def health():

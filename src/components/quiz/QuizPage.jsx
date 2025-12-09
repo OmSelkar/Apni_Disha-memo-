@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Card, CardHeader, CardContent, CardTitle } from "../ui/card"
 import { Button } from "../ui/button"
-import { ArrowLeft, ArrowRight, CheckCircle, Clock, Trophy, Loader2 } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckCircle, Clock, Trophy, Loader2, Phone, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Confetti from "react-dom-confetti"
 import axios from "axios"
@@ -16,6 +16,7 @@ const NUM_MCQ_QUESTIONS = 5
 const TOTAL_QUESTIONS = NUM_RIASEC_QUESTIONS + NUM_MCQ_QUESTIONS
 
 const API_BASE_URL = "http://127.0.0.1:8080/api/quiz"
+const CALL_API_URL = "http://127.0.0.1:8080/api/trigger-call"
 
 /* -------------------------
    Small presentational helpers
@@ -96,6 +97,116 @@ const McqOption = ({ letter, text, selected, onClick }) => (
 )
 
 /* -------------------------
+   Phone Call Modal Component
+   ------------------------- */
+const PhoneCallModal = ({ isOpen, onClose, onStartCall }) => {
+  const [phoneNumber, setPhoneNumber] = useState("")
+  const [isCalling, setIsCalling] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!phoneNumber.trim()) {
+      setError("Please enter your mobile number.")
+      return
+    }
+    // Simple validation for phone number (e.g., Indian format: 10 digits)
+    const phoneRegex = /^\d{10}$/
+    if (!phoneRegex.test(phoneNumber.replace(/\D/g, ""))) {
+      setError("Please enter a valid 10-digit mobile number.")
+      return
+    }
+
+    setError("")
+    setIsCalling(true)
+
+    try {
+      const response = await axios.post(CALL_API_URL, { phone: `+91${phoneNumber}` })
+      if (response.data.status === "call placed") {
+        onStartCall(response.data.call_sid)
+        onClose()
+      } else {
+        throw new Error("Failed to initiate call.")
+      }
+    } catch (err) {
+      console.error("Call initiation error:", err)
+      setError("Failed to start the call. Please try again.")
+    } finally {
+      setIsCalling(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white rounded-2xl max-w-md w-full shadow-2xl"
+      >
+        <Card className="overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white p-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5" />
+                Start Voice Quiz Call
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="text-white hover:bg-white/20"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-blue-100 mt-2">Enter your mobile number to receive a call for the voice-based career quiz.</p>
+          </CardHeader>
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Mobile Number
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="e.g., 9876543210"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isCalling}
+                />
+              </div>
+              {error && <p className="text-red-600 text-sm">{error}</p>}
+              <Button
+                type="submit"
+                disabled={isCalling || !phoneNumber.trim()}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 rounded-xl"
+              >
+                {isCalling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Initiating Call...
+                  </>
+                ) : (
+                  <>
+                    <Phone className="h-4 w-4 mr-2" />
+                    Start Call
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  )
+}
+
+/* -------------------------
    Main QuizPage component
    ------------------------- */
 const QuizPage = () => {
@@ -114,6 +225,10 @@ const QuizPage = () => {
   const [points, setPoints] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
   const [error, setError] = useState("")
+
+  // Phone call modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [callStatus, setCallStatus] = useState("")
 
   // Chat / mentor states
   const [chatOpen, setChatOpen] = useState(false)
@@ -367,6 +482,12 @@ const QuizPage = () => {
     }
   }
 
+  const handleStartCall = (callSid) => {
+    setCallStatus(`Call initiated! Call SID: ${callSid}. You'll receive a call shortly.`)
+    // Optionally show a toast or update UI with call status
+    setTimeout(() => setCallStatus(""), 5000)
+  }
+
   /* -------------------------
      Render loading state
   ------------------------- */
@@ -385,7 +506,7 @@ const QuizPage = () => {
      Render main quiz
   ------------------------- */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 relative">
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid md:grid-cols-[2fr_1fr] gap-8">
           <main>
@@ -579,7 +700,7 @@ const QuizPage = () => {
             <Card className="rounded-2xl shadow-lg border-2 border-blue-100">
               <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-2xl">
                 <CardTitle className="flex items-center gap-2">
-                  <span className="text-2xl">🤖</span> AI Career Mentor
+                  <span className="text-2xl">🤖</span> AI assistant
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
@@ -624,6 +745,36 @@ const QuizPage = () => {
           </aside>
         </div>
       </div>
+
+      {/* Floating Phone Button */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setModalOpen(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full shadow-lg flex items-center justify-center z-40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        aria-label="Start voice quiz via phone call"
+      >
+        <Phone className="h-6 w-6" />
+      </motion.button>
+
+      {/* Call Status Toast (optional, simple div) */}
+      {callStatus && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
+        >
+          {callStatus}
+        </motion.div>
+      )}
+
+      {/* Phone Call Modal */}
+      <PhoneCallModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onStartCall={handleStartCall}
+      />
     </div>
   )
 }
