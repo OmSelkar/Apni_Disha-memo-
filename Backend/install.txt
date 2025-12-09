@@ -1,0 +1,14 @@
+# Core LangChain packages
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-groq>=0.2.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# For future LangGraph integration
+langgraph>=0.2.0
+
+# API Framework
+flask>=3.0.0
+flask-cors>=4.0.0

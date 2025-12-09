@@ -15,6 +15,7 @@ from routes.school_interest import school_interest_routes
 from routes.quiz import quiz_routes
 from routes.mindmap import mindmap_bp
 from routes.timeline import timeline_routes
+from routes.counseller import counseller_routes
 
 
 def create_app() -> Flask:
@@ -57,6 +58,7 @@ def create_app() -> Flask:
     app.register_blueprint(school_interest_routes, url_prefix="/api")
     app.register_blueprint(quiz_routes, url_prefix="/api")
     app.register_blueprint(timeline_routes, url_prefix="/api")
+    app.register_blueprint(counseller_routes, url_prefix="/api")
    
     app.register_blueprint(mindmap_bp, url_prefix="/api") 
 
