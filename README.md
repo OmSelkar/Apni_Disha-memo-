@@ -267,6 +267,6 @@ For issues, suggestions, or questions:
 
 ---
 
-**Made with ❤️ by Atharv Patil**
+**Made with ❤️ by Atharv Patil & Team**
 
 **Last Updated**: December 2025
